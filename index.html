@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Report semanal de QA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --navy: #0E2340;
+    --navy-2: #173257;
+    --orange: #F26A1B;
+    --orange-soft: #FFE8D9;
+    --paper: #FFFFFF;
+    --ink: #1B2533;
+    --muted: #5B6778;
+    --ui-bg: #EEF1F5;
+    --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--font); background: var(--ui-bg); color: var(--ink); }
+
+  /* ---------- layout do app ---------- */
+  .app { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; min-height: 100vh; }
+  .editor { background: #fff; border-right: 1px solid #D8DEE6; padding: 24px; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
+  .preview { padding: 32px 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; overflow-x: auto; }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .editor { position: static; max-height: none; border-right: 0; border-bottom: 1px solid #D8DEE6; }
+  }
+
+  .editor h1 { font-size: 22px; font-weight: 800; margin: 0 0 4px; color: var(--navy); font-stretch: 90%; }
+  .editor .hint { font-size: 13px; color: var(--muted); margin: 0 0 20px; line-height: 1.45; }
+  fieldset { border: 0; padding: 0; margin: 0 0 22px; }
+  legend { font-weight: 700; font-size: 15px; color: var(--navy); margin-bottom: 10px; padding: 0; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input, textarea { width: 100%; font: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid #C9D1DC; border-radius: 6px; color: var(--ink); background: #fff; }
+  textarea { resize: vertical; min-height: 84px; line-height: 1.45; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .small { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .metric-row { display: grid; grid-template-columns: 80px 1fr 34px; gap: 8px; margin-bottom: 8px; }
+  .icon-btn { border: 1px solid #C9D1DC; background: #fff; border-radius: 6px; cursor: pointer; font-size: 18px; color: var(--muted); }
+  .icon-btn:hover { color: var(--orange); border-color: var(--orange); }
+
+  button.btn { font: inherit; font-size: 14px; font-weight: 700; border-radius: 8px; padding: 10px 14px; cursor: pointer; border: 2px solid var(--navy); background: #fff; color: var(--navy); }
+  button.btn:hover { background: #F4F6F9; }
+  button.btn.primary { background: var(--orange); border-color: var(--orange); color: #fff; }
+  button.btn.primary:hover { background: #D95A10; border-color: #D95A10; }
+  button.btn.dark { background: var(--navy); color: #fff; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .toast { font-size: 14px; color: var(--navy); min-height: 20px; }
+
+  /* ---------- o flyer ---------- */
+  .flyer { width: 640px; background: var(--paper); color: var(--ink); font-family: var(--font); box-shadow: 0 10px 30px rgba(14,35,64,.18); flex-shrink: 0; }
+  .f-head { background: var(--navy); color: #fff; padding: 36px 40px 30px; position: relative; overflow: hidden; }
+  .f-head::after { content: ""; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px; border: 34px solid var(--orange); border-radius: 50%; opacity: .95; }
+  .f-kicker { font-size: 15px; color: #FFB78C; font-weight: 600; margin: 0 0 6px; position: relative; z-index: 1; }
+  .f-week { font-size: 76px; line-height: .9; font-weight: 900; font-stretch: 75%; margin: 0; letter-spacing: -1px; position: relative; z-index: 1; }
+  .f-week span { color: var(--orange); }
+  .f-period { font-size: 17px; margin: 12px 0 0; color: #D6DEEA; position: relative; z-index: 1; }
+  .f-who { margin-top: 22px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.18); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 14px; position: relative; z-index: 1; }
+  .f-who strong { font-size: 16px; display: block; }
+  .f-who .role { color: #B9C6D8; }
+
+  .f-summary { padding: 26px 40px 6px; font-size: 19px; line-height: 1.45; font-weight: 500; color: var(--navy); border-left: 6px solid var(--orange); margin: 26px 40px 0; padding: 4px 0 4px 18px; }
+
+  .f-metrics { margin: 26px 40px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 2px; background: var(--orange); border: 2px solid var(--orange); border-radius: 12px; overflow: hidden; }
+  .f-metric { background: var(--navy); color: #fff; padding: 18px 16px 16px; }
+  .f-metric .num { font-size: 44px; font-weight: 900; font-stretch: 80%; line-height: 1; color: var(--orange); }
+  .f-metric .lbl { font-size: 13.5px; line-height: 1.3; margin-top: 8px; color: #E4EAF2; }
+
+  .f-body { padding: 28px 40px 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 26px 28px; }
+  .f-block.full { grid-column: 1 / -1; }
+  .f-block h3 { font-size: 18px; font-weight: 800; color: var(--navy); margin: 0 0 10px; font-stretch: 90%; display: flex; align-items: center; gap: 8px; }
+  .f-block h3::before { content: ""; width: 10px; height: 10px; background: var(--orange); border-radius: 2px; flex-shrink: 0; }
+  .f-block ul { list-style: none; margin: 0; padding: 0; }
+  .f-block li { font-size: 14.5px; line-height: 1.45; padding: 7px 0 7px 26px; position: relative; border-bottom: 1px solid #EDF0F4; }
+  .f-block li:last-child { border-bottom: 0; }
+  .f-block li::before { content: ""; position: absolute; left: 2px; top: 11px; width: 12px; height: 7px; border-left: 3px solid var(--orange); border-bottom: 3px solid var(--orange); transform: rotate(-45deg); }
+  .f-block.meetings li::before { width: 8px; height: 8px; border: 2.5px solid var(--navy); border-radius: 50%; transform: none; top: 13px; }
+  .f-block.next li::before { width: 0; height: 0; border: 0; border-left: 8px solid var(--orange); border-top: 5px solid transparent; border-bottom: 5px solid transparent; transform: none; top: 12px; left: 4px; }
+  .f-block.risk { background: var(--orange-soft); border-radius: 10px; padding: 16px 18px 8px; }
+  .f-block.risk li { border-bottom-color: #F7D3BC; }
+  .f-block.risk li::before { width: 6px; height: 6px; background: var(--orange); border: 0; border-radius: 50%; transform: none; top: 14px; left: 6px; }
+
+  .f-foot { margin-top: 22px; background: var(--navy); color: #B9C6D8; font-size: 12.5px; padding: 14px 40px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 5px solid var(--orange); }
+  .f-foot strong { color: #fff; font-weight: 600; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ================= EDITOR ================= -->
+  <aside class="editor">
+    <h1>Report semanal de QA</h1>
+    <p class="hint">Preencha à esquerda e o flyer se atualiza ao lado. Tudo fica salvo neste navegador automaticamente. Em listas, escreva um item por linha; seções vazias somem do flyer.</p>
+
+    <fieldset>
+      <legend>Quem e quando</legend>
+      <label for="nome">Nome</label>
+      <input id="nome" data-k="nome">
+      <label for="cargo">Cargo e empresa</label>
+      <input id="cargo" data-k="cargo">
+      <div class="row">
+        <div><label for="inicio">Início da semana</label><input type="date" id="inicio" data-k="inicio"></div>
+        <div><label for="fim">Fim da semana</label><input type="date" id="fim" data-k="fim"></div>
+      </div>
+      <label for="projeto">Projeto ou time (rodapé)</label>
+      <input id="projeto" data-k="projeto">
+    </fieldset>
+
+    <fieldset>
+      <legend>Resumo da semana</legend>
+      <label for="resumo">Uma ou duas frases sobre o principal da semana</label>
+      <textarea id="resumo" data-k="resumo" style="min-height:64px"></textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>Números da semana</legend>
+      <div id="metrics"></div>
+      <button type="button" class="btn" id="addMetric">Adicionar número</button>
+      <p class="small">Até 6 números. Ex.: 10 · casos de teste automatizados.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Listas</legend>
+      <label for="entregas">Entregas e destaques</label>
+      <textarea id="entregas" data-k="entregas"></textarea>
+      <label for="reunioes">Reuniões e alinhamentos</label>
+      <textarea id="reunioes" data-k="reunioes"></textarea>
+      <label for="proximos">Próximos passos</label>
+      <textarea id="proximos" data-k="proximos"></textarea>
+      <label for="riscos">Pontos de atenção ou bloqueios</label>
+      <textarea id="riscos" data-k="riscos" style="min-height:60px"></textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>Semana nova e backup</legend>
+      <div class="actions" style="justify-content:flex-start">
+        <button type="button" class="btn dark" id="novaSemana">Começar nova semana</button>
+        <button type="button" class="btn" id="salvarBackup">Salvar backup</button>
+        <button type="button" class="btn" id="abrirBackup">Abrir backup</button>
+        <input type="file" id="fileBackup" accept=".json" class="hidden">
+      </div>
+      <p class="small">"Começar nova semana" avança as datas em 7 dias, zera os números e limpa as listas (nome, cargo e rótulos dos números continuam).</p>
+    </fieldset>
+  </aside>
+
+  <!-- ================= PREVIEW ================= -->
+  <main class="preview">
+    <div class="actions">
+      <button type="button" class="btn primary" id="copiarImg">Copiar imagem para o e-mail</button>
+      <button type="button" class="btn" id="baixarPng">Baixar PNG</button>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <article class="flyer" id="flyer">
+      <header class="f-head">
+        <p class="f-kicker">Report semanal de qualidade</p>
+        <h2 class="f-week" id="fWeek">Semana <span>00</span></h2>
+        <p class="f-period" id="fPeriod"></p>
+        <div class="f-who">
+          <div><strong id="fNome"></strong><span class="role" id="fCargo"></span></div>
+        </div>
+      </header>
+
+      <p class="f-summary" id="fResumo"></p>
+      <section class="f-metrics" id="fMetrics"></section>
+
+      <section class="f-body">
+        <div class="f-block" id="bEntregas"><h3>Entregas e destaques</h3><ul></ul></div>
+        <div class="f-block meetings" id="bReunioes"><h3>Reuniões e alinhamentos</h3><ul></ul></div>
+        <div class="f-block next full" id="bProximos"><h3>Próximos passos</h3><ul></ul></div>
+        <div class="f-block risk full" id="bRiscos"><h3>Pontos de atenção</h3><ul></ul></div>
+      </section>
+
+      <footer class="f-foot">
+        <span><strong id="fFootNome"></strong> <span id="fFootProj"></span></span>
+        <span id="fFootData"></span>
+      </footer>
+    </article>
+  </main>
+</div>
+
+<script>
+const STORE_KEY = "report-semanal-qa-v1";
+
+function isoDate(d) { return d.toISOString().slice(0, 10); }
+function mondayOf(date) {
+  const d = new Date(date); const day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day); return d;
+}
+const hojeSeg = mondayOf(new Date());
+const hojeSex = new Date(hojeSeg); hojeSex.setDate(hojeSex.getDate() + 4);
+
+const defaults = {
+  nome: "Seu nome",
+  cargo: "Analista de QA",
+  inicio: isoDate(hojeSeg),
+  fim: isoDate(hojeSex),
+  projeto: "Nome do projeto ou time",
+  resumo: "Semana focada em ampliar a cobertura de testes automatizados e estabilizar a pipeline de execução.",
+  metrics: [
+    { v: "10", l: "casos de teste automatizados" },
+    { v: "2", l: "pipelines configuradas" },
+    { v: "4", l: "bugs reportados" },
+    { v: "5", l: "reuniões com o time" }
+  ],
+  entregas: "Automação de 10 casos de teste do fluxo de login e cadastro\nPipeline de testes rodando em homologação\nEvidências anexadas aos ciclos de teste",
+  reunioes: "Daily do time\nRefinamento da sprint\nAlinhamento com desenvolvimento sobre massa de dados",
+  proximos: "Automatizar os fluxos críticos do próximo módulo\nConfigurar relatório de execução na pipeline",
+  riscos: ""
+};
+
+let state = load();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) return Object.assign({}, defaults, JSON.parse(raw));
+  } catch (e) {}
+  return JSON.parse(JSON.stringify(defaults));
+}
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+/* ---------- editor ---------- */
+document.querySelectorAll("[data-k]").forEach(el => {
+  el.value = state[el.dataset.k] || "";
+  el.addEventListener("input", () => { state[el.dataset.k] = el.value; save(); render(); });
+});
+
+function renderMetricInputs() {
+  const box = document.getElementById("metrics"); box.innerHTML = "";
+  state.metrics.forEach((m, i) => {
+    const row = document.createElement("div"); row.className = "metric-row";
+    row.innerHTML = `<input aria-label="Número ${i+1}" value="${esc(m.v)}" placeholder="10">
+      <input aria-label="Descrição ${i+1}" value="${esc(m.l)}" placeholder="casos automatizados">
+      <button type="button" class="icon-btn" aria-label="Remover número ${i+1}">×</button>`;
+    const [v, l] = row.querySelectorAll("input");
+    v.addEventListener("input", () => { m.v = v.value; save(); render(); });
+    l.addEventListener("input", () => { m.l = l.value; save(); render(); });
+    row.querySelector("button").addEventListener("click", () => { state.metrics.splice(i, 1); save(); renderMetricInputs(); render(); });
+    box.appendChild(row);
+  });
+  document.getElementById("addMetric").disabled = state.metrics.length >= 6;
+}
+document.getElementById("addMetric").addEventListener("click", () => {
+  if (state.metrics.length < 6) { state.metrics.push({ v: "", l: "" }); save(); renderMetricInputs(); render(); }
+});
+
+/* ---------- flyer ---------- */
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
+function parseDate(s) { if (!s) return null; const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); }
+function isoWeek(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil(((t - y0) / 86400000 + 1) / 7);
+}
+const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+function periodo(a, b) {
+  if (!a) return "";
+  if (!b) return `${a.getDate()} de ${MESES[a.getMonth()]} de ${a.getFullYear()}`;
+  if (a.getMonth() === b.getMonth()) return `${a.getDate()} a ${b.getDate()} de ${MESES[b.getMonth()]} de ${b.getFullYear()}`;
+  return `${a.getDate()} de ${MESES[a.getMonth()]} a ${b.getDate()} de ${MESES[b.getMonth()]} de ${b.getFullYear()}`;
+}
+function fillList(id, text) {
+  const items = String(text || "").split("\n").map(s => s.trim()).filter(Boolean);
+  const block = document.getElementById(id);
+  block.classList.toggle("hidden", items.length === 0);
+  block.querySelector("ul").innerHTML = items.map(t => `<li>${esc(t)}</li>`).join("");
+  return items.length;
+}
+
+function render() {
+  const a = parseDate(state.inicio), b = parseDate(state.fim);
+  const wk = a ? String(isoWeek(a)).padStart(2, "0") : "--";
+  document.getElementById("fWeek").innerHTML = `Semana <span>${wk}</span>`;
+  document.getElementById("fPeriod").textContent = periodo(a, b);
+  document.getElementById("fNome").textContent = state.nome;
+  document.getElementById("fCargo").textContent = state.cargo;
+
+  const r = document.getElementById("fResumo");
+  r.textContent = state.resumo; r.classList.toggle("hidden", !state.resumo.trim());
+
+  const ms = state.metrics.filter(m => m.v.trim() || m.l.trim());
+  const mbox = document.getElementById("fMetrics");
+  mbox.classList.toggle("hidden", ms.length === 0);
+  mbox.innerHTML = ms.map(m => `<div class="f-metric"><div class="num">${esc(m.v)}</div><div class="lbl">${esc(m.l)}</div></div>`).join("");
+
+  const e = fillList("bEntregas", state.entregas);
+  const re = fillList("bReunioes", state.reunioes);
+  // se só uma das duas primeiras listas existir, ela ocupa a largura toda
+  document.getElementById("bEntregas").classList.toggle("full", !re);
+  document.getElementById("bReunioes").classList.toggle("full", !e);
+  fillList("bProximos", state.proximos);
+  fillList("bRiscos", state.riscos);
+
+  document.getElementById("fFootNome").textContent = state.nome;
+  document.getElementById("fFootProj").textContent = state.projeto ? `| ${state.projeto}` : "";
+  document.getElementById("fFootData").textContent = b ? `Enviado em ${b.toLocaleDateString("pt-BR")}` : "";
+}
+
+/* ---------- exportar ---------- */
+const toast = msg => { const t = document.getElementById("toast"); t.textContent = msg; clearTimeout(toast._t); toast._t = setTimeout(() => t.textContent = "", 5000); };
+
+async function flyerCanvas() {
+  if (typeof html2canvas === "undefined") throw new Error("sem-lib");
+  await document.fonts.ready;
+  return html2canvas(document.getElementById("flyer"), { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+}
+function nomeArquivo() {
+  const a = parseDate(state.inicio);
+  return `report-qa-semana-${a ? String(isoWeek(a)).padStart(2,"0") : "x"}.png`;
+}
+
+document.getElementById("baixarPng").addEventListener("click", async () => {
+  try {
+    const c = await flyerCanvas();
+    const link = document.createElement("a");
+    link.download = nomeArquivo(); link.href = c.toDataURL("image/png"); link.click();
+    toast("PNG baixado. Anexe ou arraste para o corpo do e-mail.");
+  } catch (e) { toast("Não foi possível gerar a imagem. Verifique a conexão com a internet e tente de novo."); }
+});
+
+document.getElementById("copiarImg").addEventListener("click", async () => {
+  try {
+    const c = await flyerCanvas();
+    const blob = await new Promise(res => c.toBlob(res, "image/png"));
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    toast("Imagem copiada. Cole no corpo do e-mail com Ctrl+V.");
+  } catch (e) {
+    toast("Este navegador não permitiu copiar. Use \"Baixar PNG\" e arraste a imagem para o e-mail.");
+  }
+});
+
+/* ---------- nova semana e backup ---------- */
+document.getElementById("novaSemana").addEventListener("click", () => {
+  if (!confirm("Começar uma nova semana? As listas e os números atuais serão limpos. Se quiser guardar esta semana, clique antes em \"Salvar backup\".")) return;
+  const shift = s => { const d = parseDate(s); if (!d) return s; d.setDate(d.getDate() + 7); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+  state.inicio = shift(state.inicio); state.fim = shift(state.fim);
+  state.resumo = ""; state.entregas = ""; state.reunioes = ""; state.proximos = ""; state.riscos = "";
+  state.metrics = state.metrics.map(m => ({ v: "", l: m.l }));
+  save(); syncInputs(); renderMetricInputs(); render();
+  toast("Nova semana pronta para preencher.");
+});
+
+function syncInputs() { document.querySelectorAll("[data-k]").forEach(el => el.value = state[el.dataset.k] || ""); }
+
+document.getElementById("salvarBackup").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.download = nomeArquivo().replace(".png", ".json"); link.href = URL.createObjectURL(blob); link.click();
+  toast("Backup salvo.");
+});
+document.getElementById("abrirBackup").addEventListener("click", () => document.getElementById("fileBackup").click());
+document.getElementById("fileBackup").addEventListener("change", async ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  try {
+    state = Object.assign({}, defaults, JSON.parse(await f.text()));
+    save(); syncInputs(); renderMetricInputs(); render(); toast("Backup aberto.");
+  } catch (e) { toast("Esse arquivo não é um backup válido deste report."); }
+  ev.target.value = "";
+});
+
+renderMetricInputs();
+render();
+</script>
+</body>
+</html>
